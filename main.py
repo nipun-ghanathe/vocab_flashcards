@@ -5,7 +5,7 @@ import pandas as pd  # type: ignore[import-untyped]
 
 
 def read_sorted_csv_rows(path: Path, skip_lines: int = 2) -> list[list[str]]:
-    """Read rows from a csv file ignoring specified number of initial rows."""
+    """Read and sort CSV rows, skipping the specified number of initial lines."""
     with path.open(newline="", encoding="utf-8") as csv_file:
         csv_reader = csv.reader(csv_file)
         rows = sorted(csv_reader)[skip_lines:]
@@ -19,19 +19,24 @@ def write_tsv(path: Path, rows: list[list[str]]) -> None:
         csv_writer.writerows(rows)
 
 
+def format_word(part: str, word: str) -> str:
+    """Return formatted key for the flashcard."""
+    return f"({part}) {word}"
+
+
 def get_word_meaning_list(rows: list[list[str]]) -> list[list[str]]:
-    """Get a gropued word -> meaning list."""
-    rows.sort()  # Ensure sorted for grouping
-    grouped = []
-    prev_word = ""
-    for word, part, definition in rows:
-        key = f"({part}) {word}"
-        if key != prev_word:
-            grouped.append([word, definition])
+    """Get a grouped 'word -> meaning' list."""
+    # rows.sort()  # Rows must be sorted for grouping
+    grouped_rows = []
+    prev_key = ""
+    for word, part, meaning in rows:
+        key = format_word(part, word)
+        if key != prev_key:
+            grouped_rows.append([word, meaning])
         else:
-            grouped[-1][1] = f"- {grouped[-1][1]}\n- {definition}"
-        prev_word = key
-    return grouped
+            grouped_rows[-1][1] = f"- {grouped_rows[-1][1]}\n- {meaning}"
+        prev_key = key
+    return grouped_rows
 
 
 def main():
@@ -44,14 +49,14 @@ def main():
     # Convert excel to csv
     pd.read_excel(excel_path).to_csv(csv_path, index=False)
 
-    rows = read_sorted_csv_rows(csv_path)
+    csv_rows = read_sorted_csv_rows(csv_path)
 
     # Write word -> meaning (grouped)
-    word_meaning = get_word_meaning_list(rows)
+    word_meaning = get_word_meaning_list(csv_rows)
     write_tsv(word_meaning_path, word_meaning)
 
     # Write meaning -> word (ungrouped)
-    meaning_word = [[f"({part}) {definition}", word] for word, part, definition in rows]
+    meaning_word = [[format_word(part, meaning), word] for word, part, meaning in csv_rows]
     write_tsv(meaning_word_path, meaning_word)
 
 
