@@ -1,8 +1,37 @@
 import csv
-from collections import Counter
 from pathlib import Path
 
 import pandas as pd  # type: ignore[import-untyped]
+
+
+def read_sorted_csv_rows(path: Path, skip_lines: int = 2) -> list[list[str]]:
+    """Read rows from a csv file ignoring specified number of initial rows."""
+    with path.open(newline="", encoding="utf-8") as csv_file:
+        csv_reader = csv.reader(csv_file)
+        rows = sorted(csv_reader)[skip_lines:]
+    return rows
+
+
+def write_tsv(path: Path, rows: list[list[str]]) -> None:
+    """Write a list of rows to a tsv (tab-separated csv) file."""
+    with path.open("w", newline="", encoding="utf-8") as file:
+        csv_writer = csv.writer(file, delimiter="\t", lineterminator="\n")
+        csv_writer.writerows(rows)
+
+
+def get_word_meaning_list(rows: list[list[str]]) -> list[list[str]]:
+    """Get a gropued word -> meaning list."""
+    rows.sort()  # Ensure sorted for grouping
+    grouped = []
+    prev_word = ""
+    for word, part, definition in rows:
+        key = f"({part}) {word}"
+        if key != prev_word:
+            grouped.append([word, definition])
+        else:
+            grouped[-1][1] = f"- {grouped[-1][1]}\n- {definition}"
+        prev_word = key
+    return grouped
 
 
 def main():
@@ -15,33 +44,15 @@ def main():
     # Convert excel to csv
     pd.read_excel(excel_path).to_csv(csv_path, index=False)
 
-    with csv_path.open(newline="", encoding="utf-8") as csv_file:
-        csv_reader = csv.reader(csv_file)
-        rows = list(csv_reader)[2:]  # Load data into memory
+    rows = read_sorted_csv_rows(csv_path)
 
-    # Preprocess data (wrap part of speech in parentheses)
-    for row in rows:
-        row[1] = f"({row[1]})"
+    # Write word -> meaning (grouped)
+    word_meaning = get_word_meaning_list(rows)
+    write_tsv(word_meaning_path, word_meaning)
 
-    # Write word -> meaning
-    # word_meaning_list = get_word_meaning_list(rows)
-    with word_meaning_path.open("w", newline="", encoding="utf-8") as file:
-        csv_writer = csv.writer(file, delimiter="\t", lineterminator="\n")
-        # csv_writer.writerows(word_meaning_list)
-        for word, part, definition in rows:
-            csv_writer.writerow([f"{part} {word}", definition])
-
-    # Write meaning -> word
-    with meaning_word_path.open("w", newline="", encoding="utf-8") as file:
-        csv_writer = csv.writer(file, delimiter="\t", lineterminator="\n")
-        for word, part, definition in rows:
-            csv_writer.writerow([f"{part} {definition}", word])
-
-
-# def get_word_meaning_list(rows: list[list]):
-#     new_rows = []
-#     for word, part, definition in rows:
-#         new_rows.append([f"{part} {word}", definition])
+    # Write meaning -> word (ungrouped)
+    meaning_word = [[f"({part}) {definition}", word] for word, part, definition in rows]
+    write_tsv(meaning_word_path, meaning_word)
 
 
 if __name__ == "__main__":
