@@ -10,5 +10,4 @@ wheels/
 .venv
 
 # Custom
-data/*.csv
-!data/nipun-word-list.xlsx
+data
