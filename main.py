@@ -5,6 +5,21 @@ import pandas as pd  # type: ignore[import-untyped]
 import requests
 
 
+def verify_dir_exists_else_create(dir_path: Path) -> bool:
+    """
+    Checks whether or not the given directory exists, if not then creates it.
+
+    Returns
+    -------
+        True if the path exists and is a directory
+        False if either the path doesn't exist or isn't a directory
+
+    """
+    dir_exists = dir_path.exists() and dir_path.is_dir()
+    if not dir_exists:
+        dir_path.mkdir()
+    return dir_exists
+
 def download_word_list(url: str, out_path: Path) -> None:
     """Download our word list from Cambridge Online Dictionary."""
     # Spoof browser headers
@@ -72,17 +87,20 @@ def main():
     word_meaning_path = Path("data/word-meaning.tsv")
     meaning_word_path = Path("data/meaning-word.tsv")
 
+    # Ensure that the directory exists else create it
+    verify_dir_exists_else_create(excel_path.parent)
+
     # Download the word list from Cambridge Online Dictionary
     download_word_list(url, excel_path)
 
     # Convert excel to csv
     pd.read_excel(excel_path).to_csv(csv_path, index=False)
 
+    # Read the CSV
     csv_rows = read_sorted_csv_rows(csv_path)
 
     # Write word -> meaning (grouped)
     word_meaning = get_word_meaning_list(csv_rows)
-    __import__("pprint").pprint(word_meaning)
     write_tsv(word_meaning_path, word_meaning)
 
     # Write meaning -> word (ungrouped)
